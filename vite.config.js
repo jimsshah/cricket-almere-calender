@@ -6,7 +6,12 @@ const rootDir = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
+  publicDir: false,
+  css: {
+    postcss: "./postcss.config.js",
+  },
   build: {
+    outDir: "public",
     rollupOptions: {
       input: {
         index: `${rootDir}/index.html`,
