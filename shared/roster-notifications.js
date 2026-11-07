@@ -1,4 +1,5 @@
 export function isConfirmedPlayer(orderedPlayers, uid, limit = 18) {
+  if (!uid) return false;
   const position = orderedPlayers.findIndex((player) => player.uid === uid);
   return position >= 0 && position < limit;
 }

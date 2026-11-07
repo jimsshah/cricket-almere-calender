@@ -37,6 +37,13 @@ export const api = {
     }),
   joinRoster: (user, code, name) =>
     request("/api/players", { user, method: "POST", body: { code, name } }),
+  addPlayerByAdmin: (user, adminToken, name) =>
+    request("/api/admin/players", {
+      user,
+      adminToken,
+      method: "POST",
+      body: { name },
+    }),
   saveName: (user, name) =>
     request("/api/players/me/name", { user, method: "PATCH", body: { name } }),
   removePlayer: (user, adminToken, id) =>

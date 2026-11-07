@@ -16,6 +16,9 @@ test("joining players are confirmed only when they fall inside the playing limit
   assert.equal(isConfirmedPlayer(roster, "user-18"), true);
   assert.equal(isConfirmedPlayer(roster, "user-19"), false);
   assert.equal(isConfirmedPlayer(roster, "unknown-user"), false);
+  assert.equal(isConfirmedPlayer(roster, null), false);
+  assert.equal(isConfirmedPlayer(roster, undefined), false);
+  assert.equal(isConfirmedPlayer(roster, ""), false);
 });
 
 test("removing a playing player promotes the first waitlisted player", () => {

@@ -11,6 +11,7 @@ import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { validateServerProject } from "./shared/firebase-project.js";
+import { validatePlayerName } from "./shared/player-validation.js";
 import {
   getPromotedPlayer,
   isConfirmedPlayer,
@@ -147,6 +148,7 @@ const getPlayerById = async (id) => {
 
 const sendPushNotification = async (uid, title, body) => {
   try {
+    if (!uid) return;
     const tokenSnapshot = await pushTokensRef.where("uid", "==", uid).get();
     if (tokenSnapshot.empty) return;
 
@@ -367,7 +369,7 @@ app.delete("/api/players/:id", requireUser, asyncRoute(async (req, res) => {
   });
   batch.delete(player.ref);
   await batch.commit();
-  if (promotedPlayer) {
+  if (promotedPlayer && promotedPlayer.uid) {
     await sendPushNotification(
       promotedPlayer.uid,
       "A cricket spot is now confirmed for you",
@@ -375,6 +377,27 @@ app.delete("/api/players/:id", requireUser, asyncRoute(async (req, res) => {
     );
   }
   res.status(204).end();
+}));
+
+app.post("/api/admin/players", requireUser, requireAdmin, asyncRoute(async (req, res) => {
+  const playersSnapshot = await db.collection("players").orderBy("timestamp", "asc").get();
+  const existingPlayers = playersSnapshot.docs.map((doc) => doc.data());
+  const validation = validatePlayerName(req.body?.name, existingPlayers);
+  if (!validation.valid) {
+    const status = validation.error.includes("already on the roster") ? 409 : 400;
+    return res.status(status).json({ error: validation.error });
+  }
+
+  const playerRef = db.collection("players").doc();
+  await playerRef.set({
+    uid: null,
+    name: validation.trimmedName,
+    paid: Boolean(req.body?.paid),
+    timestamp: FieldValue.serverTimestamp(),
+    addedByAdmin: true,
+  });
+
+  res.status(201).json({ ok: true, id: playerRef.id, name: validation.trimmedName });
 }));
 
 app.patch("/api/players/:id/paid", requireUser, asyncRoute(async (req, res) => {

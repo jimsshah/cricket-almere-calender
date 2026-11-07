@@ -25,6 +25,9 @@ export default function App() {
   const [pushMessaging, setPushMessaging] = useState(null);
   const [pushStatus, setPushStatus] = useState("");
   const [isEnablingPush, setIsEnablingPush] = useState(false);
+  const [adminPlayerName, setAdminPlayerName] = useState("");
+  const [adminAddError, setAdminAddError] = useState("");
+  const [isAddingPlayer, setIsAddingPlayer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
@@ -200,6 +203,22 @@ export default function App() {
     }
   };
 
+  const addPlayerByAdmin = async () => {
+    const trimmed = adminPlayerName.trim();
+    if (!trimmed) return;
+    setIsAddingPlayer(true);
+    setAdminAddError("");
+    try {
+      await api.addPlayerByAdmin(user, adminToken, trimmed);
+      setAdminPlayerName("");
+      showTemporaryStatus(`Added "${trimmed}" to the roster!`);
+    } catch (addError) {
+      setAdminAddError(addError.message || "Failed to add player.");
+    } finally {
+      setIsAddingPlayer(false);
+    }
+  };
+
   const saveSessionDetails = async () => {
     try {
       const result = await api.saveSession(user, adminToken, {
@@ -329,7 +348,7 @@ export default function App() {
         <section className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-lg font-extrabold text-red-800">Admin Control Panel</h3>
-            <button onClick={() => setAdminToken("")} className="rounded-lg bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">Exit Admin</button>
+            <button onClick={() => { setAdminToken(""); setAdminPlayerName(""); setAdminAddError(""); }} className="rounded-lg bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">Exit Admin</button>
           </div>
           {statusMsg && <div className="mb-3 rounded-xl border border-green-300 bg-green-100 p-2.5 text-center text-xs font-bold text-green-800">{statusMsg}</div>}
           <div className="mb-3 flex items-center justify-between rounded-xl border border-red-100 bg-white p-3">
@@ -338,6 +357,36 @@ export default function App() {
               <span className="font-mono text-xl font-extrabold tracking-wider text-gray-900">{weeklyCode || "NONE"}</span>
             </div>
             <button onClick={generateCode} className="rounded-xl bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-red-700">Generate New Code</button>
+          </div>
+          <div className="mb-3 rounded-xl border border-red-100 bg-white p-3">
+            <label htmlFor="admin-add-player" className="mb-1 block text-xs font-bold text-gray-600">Add Player to Roster</label>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                addPlayerByAdmin();
+              }}
+              className="flex gap-2"
+            >
+              <input
+                id="admin-add-player"
+                type="text"
+                value={adminPlayerName}
+                onChange={(event) => {
+                  setAdminPlayerName(event.target.value);
+                  if (adminAddError) setAdminAddError("");
+                }}
+                placeholder="Enter player name (e.g. Rahul)"
+                className="flex-1 rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+              <button
+                type="submit"
+                disabled={isAddingPlayer || !adminPlayerName.trim()}
+                className="rounded-xl bg-red-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
+              >
+                {isAddingPlayer ? "Adding..." : "Add Player"}
+              </button>
+            </form>
+            {adminAddError && <p className="mt-1.5 text-xs font-semibold text-red-500">{adminAddError}</p>}
           </div>
           <div className="mb-3 space-y-3 rounded-xl border border-red-100 bg-white p-3">
             <div>
