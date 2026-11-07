@@ -21,7 +21,26 @@ export default function App() {
   const [departures, setDepartures] = useState([]);
   const [history, setHistory] = useState([]);
   const [expandedHistoryId, setExpandedHistoryId] = useState(null);
-  const [adminToken, setAdminToken] = useState("");
+  const [adminToken, setAdminToken] = useState(() => {
+    try {
+      return sessionStorage.getItem("cricket_admin_token") || "";
+    } catch {
+      return "";
+    }
+  });
+
+  const updateAdminToken = (token) => {
+    setAdminToken(token);
+    try {
+      if (token) {
+        sessionStorage.setItem("cricket_admin_token", token);
+      } else {
+        sessionStorage.removeItem("cricket_admin_token");
+      }
+    } catch {
+      // ignore storage errors
+    }
+  };
   const [pushMessaging, setPushMessaging] = useState(null);
   const [pushStatus, setPushStatus] = useState("");
   const [isEnablingPush, setIsEnablingPush] = useState(false);
@@ -183,7 +202,7 @@ export default function App() {
     if (!pin) return;
     try {
       const result = await api.loginAdmin(user, pin.trim());
-      setAdminToken(result.token);
+      updateAdminToken(result.token);
       setAdminDateInput(matchDate);
       setAdminLinkInput(paymentLink);
       setError("");
@@ -213,6 +232,9 @@ export default function App() {
       setAdminPlayerName("");
       showTemporaryStatus(`Added "${trimmed}" to the roster!`);
     } catch (addError) {
+      if (addError.message === "Admin access required.") {
+        updateAdminToken("");
+      }
       setAdminAddError(addError.message || "Failed to add player.");
     } finally {
       setIsAddingPlayer(false);
@@ -327,6 +349,11 @@ export default function App() {
             <span className="block text-xs text-gray-400">Playing as</span>
             <span className="text-sm font-bold text-gray-800">{name}</span>
             <button onClick={() => setIsEditingName(true)} className="ml-auto mt-0.5 block text-xs font-medium text-blue-600 hover:underline">Change Name</button>
+            {isAdmin ? (
+              <span className="mt-1 inline-block rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-extrabold text-red-700">Admin Mode</span>
+            ) : (
+              <button onClick={adminLogin} className="ml-auto mt-1 block text-[11px] font-semibold text-gray-400 hover:text-green-700">Admin Login</button>
+            )}
           </div>
         </div>
       </header>
@@ -348,7 +375,7 @@ export default function App() {
         <section className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-lg font-extrabold text-red-800">Admin Control Panel</h3>
-            <button onClick={() => { setAdminToken(""); setAdminPlayerName(""); setAdminAddError(""); }} className="rounded-lg bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">Exit Admin</button>
+            <button onClick={() => { updateAdminToken(""); setAdminPlayerName(""); setAdminAddError(""); }} className="rounded-lg bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">Exit Admin</button>
           </div>
           {statusMsg && <div className="mb-3 rounded-xl border border-green-300 bg-green-100 p-2.5 text-center text-xs font-bold text-green-800">{statusMsg}</div>}
           <div className="mb-3 flex items-center justify-between rounded-xl border border-red-100 bg-white p-3">
@@ -489,8 +516,53 @@ export default function App() {
       <section className="mb-6">
         <div className="mb-2.5 flex items-center justify-between px-1">
           <h2 className="text-lg font-extrabold text-green-700">Playing Roster ({playingXI.length}/18)</h2>
-          {paymentLink && <span className="text-xs font-semibold text-gray-500">Paid: {playingXI.filter((player) => player.paid).length}/{playingXI.length}</span>}
+          <div className="flex items-center gap-2">
+            {paymentLink && <span className="text-xs font-semibold text-gray-500">Paid: {playingXI.filter((player) => player.paid).length}/{playingXI.length}</span>}
+            {!isAdmin && (
+              <button onClick={adminLogin} className="text-xs font-semibold text-gray-400 hover:text-green-700">
+                Admin Login
+              </button>
+            )}
+          </div>
         </div>
+
+        {isAdmin && (
+          <div className="mb-3 rounded-2xl border border-green-200 bg-green-50/70 p-3 shadow-sm">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-xs font-bold text-green-900">Add Player to List</span>
+              <span className="text-[10px] font-semibold text-green-700">
+                {playingXI.length < 18 ? `Next: Spot #${playingXI.length + 1} (Playing)` : `Next: Waitlist #${waitlist.length + 1}`}
+              </span>
+            </div>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                addPlayerByAdmin();
+              }}
+              className="flex gap-2"
+            >
+              <input
+                type="text"
+                value={adminPlayerName}
+                onChange={(event) => {
+                  setAdminPlayerName(event.target.value);
+                  if (adminAddError) setAdminAddError("");
+                }}
+                placeholder="Enter player name (e.g. Rahul)"
+                className="flex-1 rounded-xl border border-green-300 bg-white p-2.5 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <button
+                type="submit"
+                disabled={isAddingPlayer || !adminPlayerName.trim()}
+                className="rounded-xl bg-green-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-green-800 disabled:opacity-50"
+              >
+                {isAddingPlayer ? "Adding..." : "+ Add Player"}
+              </button>
+            </form>
+            {adminAddError && <p className="mt-1.5 text-xs font-semibold text-red-600">{adminAddError}</p>}
+          </div>
+        )}
+
         <div className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
           {playingXI.length === 0 && <p className="p-6 text-center text-sm text-gray-400">No players registered yet.</p>}
           {playingXI.map((player, index) => {
@@ -558,7 +630,9 @@ export default function App() {
       )}
 
       <div className="mt-16 text-center">
-        <button onClick={adminLogin} className="p-4 text-gray-300 focus:outline-none">.</button>
+        <button onClick={adminLogin} className="text-xs text-gray-400 hover:text-gray-600 focus:outline-none">
+          {isAdmin ? "✓ Admin Mode Active (Tap to re-auth)" : "Admin Login"}
+        </button>
       </div>
     </main>
   );
