@@ -225,6 +225,20 @@ app.post("/api/push-token", requireUser, asyncRoute(async (req, res) => {
   return res.status(204).end();
 }));
 
+app.delete("/api/push-token", requireUser, asyncRoute(async (req, res) => {
+  const token = req.body?.token;
+  if (typeof token === "string" && token.length > 0) {
+    const tokenId = crypto.createHash("sha256").update(token).digest("hex");
+    await pushTokensRef.doc(tokenId).delete();
+  } else {
+    const snapshot = await pushTokensRef.where("uid", "==", req.firebaseUser.uid).get();
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+  }
+  return res.status(204).end();
+}));
+
 const adminLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,

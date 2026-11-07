@@ -1,4 +1,4 @@
-import { getMessaging, getToken, isSupported } from "@firebase/messaging";
+import { deleteToken, getMessaging, getToken, isSupported } from "@firebase/messaging";
 import { api } from "./api.js";
 import { auth } from "./firebase.js";
 
@@ -35,6 +35,42 @@ export async function enablePushNotifications(user) {
     throw new Error("Could not retrieve push notification token.");
   }
 
+  try {
+    localStorage.removeItem("cricket_push_disabled");
+    localStorage.setItem("cricket_push_token", token);
+  } catch {
+    // ignore
+  }
+
   await api.registerPushToken(user, token);
-  return messaging;
+  return { messaging, token };
+}
+
+export async function disablePushNotifications(user) {
+  const messaging = getMessaging(auth.app);
+  let token = "";
+  try {
+    token = localStorage.getItem("cricket_push_token") || "";
+  } catch {
+    // ignore
+  }
+
+  try {
+    await deleteToken(messaging);
+  } catch (error) {
+    console.warn("Could not delete Firebase messaging token:", error);
+  }
+
+  try {
+    await api.deletePushToken(user, token);
+  } catch (error) {
+    console.warn("Could not delete push token from server:", error);
+  }
+
+  try {
+    localStorage.setItem("cricket_push_disabled", "true");
+    localStorage.removeItem("cricket_push_token");
+  } catch {
+    // ignore
+  }
 }

@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInAnonymously } from "@firebase/auth";
 import { onMessage } from "@firebase/messaging";
 import { api, readRosterEvents } from "./api.js";
 import { auth } from "./firebase.js";
-import { enablePushNotifications } from "./push.js";
+import { disablePushNotifications, enablePushNotifications } from "./push.js";
 
 let anonymousSignInPromise;
 
@@ -43,7 +43,7 @@ export default function App() {
   };
   const [pushMessaging, setPushMessaging] = useState(null);
   const [pushStatus, setPushStatus] = useState("");
-  const [isEnablingPush, setIsEnablingPush] = useState(false);
+  const [isTogglingPush, setIsTogglingPush] = useState(false);
   const [adminPlayerName, setAdminPlayerName] = useState("");
   const [adminAddError, setAdminAddError] = useState("");
   const [isAddingPlayer, setIsAddingPlayer] = useState(false);
@@ -106,9 +106,16 @@ export default function App() {
     if (!user || typeof Notification === "undefined" || Notification.permission !== "granted") {
       return undefined;
     }
+    try {
+      if (localStorage.getItem("cricket_push_disabled") === "true") {
+        return undefined;
+      }
+    } catch {
+      // ignore
+    }
     let active = true;
     enablePushNotifications(user)
-      .then((messaging) => {
+      .then(({ messaging }) => {
         if (active) {
           setPushMessaging(messaging);
           setPushStatus("Notifications are enabled on this device.");
@@ -148,16 +155,29 @@ export default function App() {
   }, [pushMessaging]);
 
   const enableNotifications = async () => {
-    setIsEnablingPush(true);
+    setIsTogglingPush(true);
     setPushStatus("");
     try {
-      const messaging = await enablePushNotifications(user);
+      const { messaging } = await enablePushNotifications(user);
       setPushMessaging(messaging);
       setPushStatus("Notifications are enabled on this device.");
     } catch (pushError) {
       setPushStatus(pushError.message);
     } finally {
-      setIsEnablingPush(false);
+      setIsTogglingPush(false);
+    }
+  };
+
+  const disableNotifications = async () => {
+    setIsTogglingPush(true);
+    try {
+      await disablePushNotifications(user);
+      setPushMessaging(null);
+      setPushStatus("Notifications disabled on this device.");
+    } catch (pushError) {
+      setPushStatus(pushError.message || "Failed to disable notifications.");
+    } finally {
+      setIsTogglingPush(false);
     }
   };
 
@@ -339,9 +359,6 @@ export default function App() {
   const currentUserEntry = players.find((player) => player.uid === user?.uid);
   const isUserInPlaying = playingXI.some((player) => player.uid === user?.uid);
   const isAdmin = Boolean(adminToken);
-  let pushButtonLabel = "Enable notifications";
-  if (pushMessaging) pushButtonLabel = "Enabled";
-  if (isEnablingPush) pushButtonLabel = "Enabling...";
 
   return (
     <main className="mx-auto mt-6 max-w-md p-4 pb-24">
@@ -370,15 +387,25 @@ export default function App() {
 
       <section className="mb-5 flex items-center justify-between gap-3" aria-live="polite">
         <div className="min-w-0 text-xs text-gray-600">
-          {pushStatus || (pushMessaging ? "Notifications enabled" : "Get notified when a playing spot is confirmed.")}
+          {pushStatus || (pushMessaging ? "Notifications are enabled on this device." : "Get notified when a playing spot is confirmed.")}
         </div>
-        <button
-          onClick={enableNotifications}
-          disabled={isEnablingPush || Boolean(pushMessaging)}
-          className="shrink-0 rounded-lg border border-green-300 bg-white px-3 py-2 text-xs font-bold text-green-800 disabled:opacity-60"
-        >
-          {pushButtonLabel}
-        </button>
+        {pushMessaging ? (
+          <button
+            onClick={disableNotifications}
+            disabled={isTogglingPush}
+            className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-bold text-red-700 shadow-sm hover:bg-red-50 disabled:opacity-60"
+          >
+            {isTogglingPush ? "Disabling..." : "Disable"}
+          </button>
+        ) : (
+          <button
+            onClick={enableNotifications}
+            disabled={isTogglingPush}
+            className="shrink-0 rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-bold text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-60"
+          >
+            {isTogglingPush ? "Enabling..." : "Enable"}
+          </button>
+        )}
       </section>
 
       {isAdmin && (

@@ -61,6 +61,8 @@ export const api = {
     }),
   registerPushToken: (user, token) =>
     request("/api/push-token", { user, method: "POST", body: { token, fid: token } }),
+  deletePushToken: (user, token) =>
+    request("/api/push-token", { user, method: "DELETE", body: { token } }),
 };
 
 export async function readRosterEvents(user, signal, onState) {
