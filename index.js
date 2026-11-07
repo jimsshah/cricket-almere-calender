@@ -153,9 +153,32 @@ const sendPushNotification = async (uid, title, body) => {
     if (tokenSnapshot.empty) return;
 
     const tokenDocuments = tokenSnapshot.docs;
+    const tokens = [
+      ...new Set(
+        tokenDocuments
+          .map((doc) => doc.data().token || doc.data().fid)
+          .filter((t) => typeof t === "string" && t.length > 0)
+      ),
+    ];
+
+    if (tokens.length === 0) return;
+
+    console.log(`Sending push notification to user ${uid} (${tokens.length} token(s)): "${title}"`);
+
     const response = await getMessaging(firebaseApp).sendEachForMulticast({
-      fids: tokenDocuments.map((doc) => doc.data().fid),
+      tokens,
+      notification: { title, body },
       data: { title, body, url: "/" },
+      webpush: {
+        notification: {
+          title,
+          body,
+          icon: "/favicon.ico",
+        },
+        fcmOptions: {
+          link: "/",
+        },
+      },
     });
 
     const staleTokenDeletes = [];
@@ -164,9 +187,13 @@ const sendPushNotification = async (uid, title, body) => {
       if (code === "messaging/registration-token-not-registered"
         || code === "messaging/invalid-registration-token") {
         staleTokenDeletes.push(tokenDocuments[index].ref.delete());
+      } else if (result.error) {
+        console.warn(`Push delivery error for user ${uid}:`, result.error);
       }
     });
-    await Promise.all(staleTokenDeletes);
+    if (staleTokenDeletes.length > 0) {
+      await Promise.all(staleTokenDeletes);
+    }
   } catch (error) {
     console.error("Could not send roster push notification:", error);
   }
@@ -184,14 +211,15 @@ app.get("/api/health/ready", asyncRoute(async (_req, res) => {
 }));
 
 app.post("/api/push-token", requireUser, asyncRoute(async (req, res) => {
-  const fid = req.body?.fid;
-  if (typeof fid !== "string" || fid.length === 0 || fid.length > 256) {
-    return res.status(400).json({ error: "A valid Firebase Installation ID is required." });
+  const token = req.body?.token || req.body?.fid;
+  if (typeof token !== "string" || token.length === 0 || token.length > 4096) {
+    return res.status(400).json({ error: "A valid push token is required." });
   }
-  const fidId = crypto.createHash("sha256").update(fid).digest("hex");
-  await pushTokensRef.doc(fidId).set({
+  const tokenId = crypto.createHash("sha256").update(token).digest("hex");
+  await pushTokensRef.doc(tokenId).set({
     uid: req.firebaseUser.uid,
-    fid,
+    token,
+    fid: token,
     updatedAt: FieldValue.serverTimestamp(),
   });
   return res.status(204).end();

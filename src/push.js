@@ -1,4 +1,4 @@
-import { getMessaging, isSupported, onRegistered, register } from "@firebase/messaging";
+import { getMessaging, getToken, isSupported } from "@firebase/messaging";
 import { api } from "./api.js";
 import { auth } from "./firebase.js";
 
@@ -25,31 +25,16 @@ export async function enablePushNotifications(user) {
     : "/firebase-messaging-sw.js";
   const registration = await navigator.serviceWorker.register(serviceWorkerPath, { type: "module" });
   const messaging = getMessaging(auth.app);
-  const options = {
+
+  const token = await getToken(messaging, {
     vapidKey,
     serviceWorkerRegistration: registration,
-  };
-  const fid = await new Promise((resolve, reject) => {
-    let unsubscribe = () => {};
-    let timeout;
-    let settled = false;
-    const finish = (callback, value) => {
-      if (settled) return;
-      settled = true;
-      if (timeout) clearTimeout(timeout);
-      unsubscribe();
-      callback(value);
-    };
-
-    timeout = window.setTimeout(
-      () => finish(reject, new Error("Firebase did not finish notification registration.")),
-      15000,
-    );
-    unsubscribe = onRegistered(messaging, (registeredFid) => finish(resolve, registeredFid));
-    if (settled) unsubscribe();
-    register(messaging, options).catch((error) => finish(reject, error));
   });
 
-  await api.registerPushToken(user, fid);
+  if (!token) {
+    throw new Error("Could not retrieve push notification token.");
+  }
+
+  await api.registerPushToken(user, token);
   return messaging;
 }

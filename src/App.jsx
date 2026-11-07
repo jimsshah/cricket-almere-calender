@@ -130,10 +130,20 @@ export default function App() {
   useEffect(() => {
     if (!pushMessaging) return undefined;
     return onMessage(pushMessaging, (payload) => {
-      const title = payload.data?.title || "Cricket Roster";
-      const body = payload.data?.body || "Your roster has been updated.";
+      const title = payload.notification?.title || payload.data?.title || "Cricket Roster";
+      const body = payload.notification?.body || payload.data?.body || "Your roster has been updated.";
       setStatusMsg(`${title}: ${body}`);
-      if (Notification.permission === "granted") new Notification(title, { body });
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.ready.then((reg) => {
+            reg.showNotification(title, { body, icon: "/favicon.ico" });
+          }).catch(() => {
+            try { new Notification(title, { body }); } catch { /* ignore */ }
+          });
+        } else {
+          try { new Notification(title, { body }); } catch { /* ignore */ }
+        }
+      }
     });
   }, [pushMessaging]);
 

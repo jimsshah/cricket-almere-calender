@@ -59,8 +59,8 @@ export const api = {
       method: "PATCH",
       body: { paid },
     }),
-  registerPushToken: (user, fid) =>
-    request("/api/push-token", { user, method: "POST", body: { fid } }),
+  registerPushToken: (user, token) =>
+    request("/api/push-token", { user, method: "POST", body: { token, fid: token } }),
 };
 
 export async function readRosterEvents(user, signal, onState) {
