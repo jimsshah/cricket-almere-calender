@@ -385,36 +385,6 @@ export default function App() {
             </div>
             <button onClick={generateCode} className="rounded-xl bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-red-700">Generate New Code</button>
           </div>
-          <div className="mb-3 rounded-xl border border-red-100 bg-white p-3">
-            <label htmlFor="admin-add-player" className="mb-1 block text-xs font-bold text-gray-600">Add Player to Roster</label>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                addPlayerByAdmin();
-              }}
-              className="flex gap-2"
-            >
-              <input
-                id="admin-add-player"
-                type="text"
-                value={adminPlayerName}
-                onChange={(event) => {
-                  setAdminPlayerName(event.target.value);
-                  if (adminAddError) setAdminAddError("");
-                }}
-                placeholder="Enter player name (e.g. Rahul)"
-                className="flex-1 rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-              <button
-                type="submit"
-                disabled={isAddingPlayer || !adminPlayerName.trim()}
-                className="rounded-xl bg-red-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
-              >
-                {isAddingPlayer ? "Adding..." : "Add Player"}
-              </button>
-            </form>
-            {adminAddError && <p className="mt-1.5 text-xs font-semibold text-red-500">{adminAddError}</p>}
-          </div>
           <div className="mb-3 space-y-3 rounded-xl border border-red-100 bg-white p-3">
             <div>
               <label htmlFor="admin-match-date" className="mb-1 block text-xs font-bold text-gray-600">Match Date</label>
@@ -502,15 +472,55 @@ export default function App() {
         </section>
       )}
 
-      {!currentUserEntry && (
-        <section className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <h3 className="mb-2 text-sm font-bold text-gray-800">Join This Week&apos;s Match</h3>
-          <div className="flex gap-2">
-            <input type="text" value={inputCode} onChange={(event) => setInputCode(event.target.value)} onKeyDown={(event) => event.key === "Enter" && joinRoster()} placeholder="Enter 4-digit code" className="flex-1 rounded-xl border border-gray-300 p-2.5 text-center font-mono font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-green-500" maxLength="4" />
-            <button onClick={joinRoster} className="rounded-xl bg-green-600 px-6 py-2.5 font-bold text-white shadow-sm hover:bg-green-700">Join</button>
+      {isAdmin ? (
+        <section className="mb-6 rounded-2xl border-2 border-green-500 bg-white p-4 shadow-md">
+          <div className="mb-1 flex items-center justify-between">
+            <h3 className="text-base font-extrabold text-gray-900">🏏 Add Player to Roster</h3>
+            <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-800">
+              Admin Mode • No Code Needed
+            </span>
           </div>
-          {error && <p className="mt-2 text-xs font-semibold text-red-500">{error}</p>}
+          <p className="mb-3 text-xs text-gray-500">
+            Enter any player name to add them directly to the roster or waitlist without needing a join code.
+          </p>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              addPlayerByAdmin();
+            }}
+            className="flex gap-2"
+          >
+            <input
+              type="text"
+              value={adminPlayerName}
+              onChange={(event) => {
+                setAdminPlayerName(event.target.value);
+                if (adminAddError) setAdminAddError("");
+              }}
+              placeholder="Enter player name (e.g. Rahul)"
+              className="flex-1 rounded-xl border border-gray-300 p-2.5 text-sm font-semibold text-gray-900 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <button
+              type="submit"
+              disabled={isAddingPlayer || !adminPlayerName.trim()}
+              className="rounded-xl bg-green-600 px-5 py-2.5 font-bold text-white shadow-sm hover:bg-green-700 disabled:opacity-50"
+            >
+              {isAddingPlayer ? "Adding..." : "+ Add Player"}
+            </button>
+          </form>
+          {adminAddError && <p className="mt-2 text-xs font-semibold text-red-600">{adminAddError}</p>}
         </section>
+      ) : (
+        !currentUserEntry && (
+          <section className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <h3 className="mb-2 text-sm font-bold text-gray-800">Join This Week&apos;s Match</h3>
+            <div className="flex gap-2">
+              <input type="text" value={inputCode} onChange={(event) => setInputCode(event.target.value)} onKeyDown={(event) => event.key === "Enter" && joinRoster()} placeholder="Enter 4-digit code" className="flex-1 rounded-xl border border-gray-300 p-2.5 text-center font-mono font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-green-500" maxLength="4" />
+              <button onClick={joinRoster} className="rounded-xl bg-green-600 px-6 py-2.5 font-bold text-white shadow-sm hover:bg-green-700">Join</button>
+            </div>
+            {error && <p className="mt-2 text-xs font-semibold text-red-500">{error}</p>}
+          </section>
+        )
       )}
 
       <section className="mb-6">
@@ -525,43 +535,6 @@ export default function App() {
             )}
           </div>
         </div>
-
-        {isAdmin && (
-          <div className="mb-3 rounded-2xl border border-green-200 bg-green-50/70 p-3 shadow-sm">
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-xs font-bold text-green-900">Add Player to List</span>
-              <span className="text-[10px] font-semibold text-green-700">
-                {playingXI.length < 18 ? `Next: Spot #${playingXI.length + 1} (Playing)` : `Next: Waitlist #${waitlist.length + 1}`}
-              </span>
-            </div>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                addPlayerByAdmin();
-              }}
-              className="flex gap-2"
-            >
-              <input
-                type="text"
-                value={adminPlayerName}
-                onChange={(event) => {
-                  setAdminPlayerName(event.target.value);
-                  if (adminAddError) setAdminAddError("");
-                }}
-                placeholder="Enter player name (e.g. Rahul)"
-                className="flex-1 rounded-xl border border-green-300 bg-white p-2.5 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-              <button
-                type="submit"
-                disabled={isAddingPlayer || !adminPlayerName.trim()}
-                className="rounded-xl bg-green-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-green-800 disabled:opacity-50"
-              >
-                {isAddingPlayer ? "Adding..." : "+ Add Player"}
-              </button>
-            </form>
-            {adminAddError && <p className="mt-1.5 text-xs font-semibold text-red-600">{adminAddError}</p>}
-          </div>
-        )}
 
         <div className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
           {playingXI.length === 0 && <p className="p-6 text-center text-sm text-gray-400">No players registered yet.</p>}
